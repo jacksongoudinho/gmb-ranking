@@ -2,8 +2,9 @@ const puppeteer = require("puppeteer");
 
 const url = "https://www.google.com/maps/";
 const keyWord = "esquadrias aluminio guaruja";
+const businessName = 'Mazaglass - Esquadrias de Alumínio e Vidros Guarujá';
 
-async function main() {
+async function main(businessName) {
     const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
     await page.goto(url);
@@ -12,35 +13,44 @@ async function main() {
 
     await page.waitForSelector(".hfpxzc");
 
-    const jesusMeAjuda = await page.evaluate(async () => {
+    const position = await page.evaluate(async (businessName) => {
         await new Promise((resolve) => {
-            const distance = 100;
-            let scrolledAmount = 0;
+            const div = document.querySelector('div[role="feed"]');
+            if (!div) {
+                resolve();
+                return;
+            }
 
-            const timer = setInterval(() => {
-
-                window.scrollBy(0, distance);
-                scrolledAmount += distance;
-
-                if (scrolledAmount >= document.body.scrollHeight) {
-                    clearInterval(timer);
-                    resolve();
+            let previousHeight = div.scrollHeight;
+            const scrollInterval = setInterval(() => {
+                div.scrollTop += 80;
+                if (div.scrollTop + div.clientHeight >= div.scrollHeight) {
+                    setTimeout(() => {
+                        if (previousHeight === div.scrollHeight) {
+                            clearInterval(scrollInterval);
+                            resolve();
+                        } else {
+                            previousHeight = div.scrollHeight;
+                        }
+                    }, 3000);
                 }
             }, 100);
         });
 
         const results = Array.from(document.querySelectorAll(".hfpxzc"));
-        return results
+        const filteredResults = results
             .map((result) => {
                 const title = result.getAttribute("aria-label");
                 return title ? { title } : null;
             })
             .filter((item) => item !== null);
-    });
 
-    console.log(jesusMeAjuda);
+        const position = filteredResults.findIndex((item => item.title === businessName));
+        return position + 1;
+    }, businessName);
+
+    console.log(`O ${businessName} está na ${position}° posição no ranking do Google.`);
     await browser.close();
 }
 
-main();
-
+main(businessName);
